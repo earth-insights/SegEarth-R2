@@ -4,7 +4,7 @@
       <img width="100%" src="https://github.com/user-attachments/assets/656d9b12-d829-4d7a-8d53-deb19334dc91" alt="Ultralytics YOLO banner"></a>
   </p>
 
-[中文](https://docs.ultralytics.com/zh/](https://github.com/earth-insights/SegEarth-R2/blob/contest/README.zh-CN.md)) | [English](https://docs.ultralytics.com/ko/](https://github.com/earth-insights/SegEarth-R2/blob/contest/README.md))
+[中文](https://github.com/earth-insights/SegEarth-R2/blob/contest/README.zh-CN.md) | [English](https://github.com/earth-insights/SegEarth-R2/blob/contest/README.md)
 </div>
 <br>
 
