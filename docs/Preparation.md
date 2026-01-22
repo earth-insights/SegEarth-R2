@@ -12,7 +12,7 @@ data_path/
 |
 ├── test/
 |   └──annotations/
-|        ├── ...
+|        ├── ... (仅包含问题（description）和答案（answer）)
 |  	└──images/
 |        └── ...
 ```
