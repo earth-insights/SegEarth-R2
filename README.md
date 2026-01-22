@@ -10,6 +10,7 @@
 
 - 01/22/2026：[训练集](https://pan.baidu.com/s/17EWCQX2bjkXUuAdqISdrLg?pwd=AIRS) 和 [验证集](https://pan.baidu.com/s/146ZLrZcdtpSlWSKW7xH0Dg?pwd=AIRS)已发布。为方便参赛者更快搭建开发环境，现额外提供[Conda环境包](https://pan.baidu.com/s/1Sv9U6alZ5_lPa_6w-EuIAw)。
 - 01/21/2026：Baseline代码已发布。
+- 01/18/2026：[赛题](https://www.codabench.org/competitions/12624/)已发布，欢迎大家参赛！
 - 12/24/2025：LaSeRS数据集将会作为 **AIRS2026**竞赛 中的一部分，因此数据延迟发布。欢迎大家关注！重要信息将会在此界面更新。
 - 12/24/2025：[SegEarth-R2](https://arxiv.org/abs/2512.20013) 论文已发布。
 
