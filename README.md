@@ -8,7 +8,7 @@
 </div>
 <br>
 
-- 01/22/2026: [训练集](https://pan.baidu.com/s/17EWCQX2bjkXUuAdqISdrLg?pwd=AIRS) 和 [验证集](https://pan.baidu.com/s/146ZLrZcdtpSlWSKW7xH0Dg?pwd=AIRS)已发布。
+- 01/22/2026：[训练集](https://pan.baidu.com/s/17EWCQX2bjkXUuAdqISdrLg?pwd=AIRS) 和 [验证集](https://pan.baidu.com/s/146ZLrZcdtpSlWSKW7xH0Dg?pwd=AIRS)已发布。
 - 01/21/2026：Baseline代码已发布。
 - 12/24/2025：LaSeRS数据集将会作为 **AIRS2026**竞赛 中的一部分，因此数据延迟发布。欢迎大家关注！重要信息将会在此界面更新。
 - 12/24/2025：[SegEarth-R2](https://arxiv.org/abs/2512.20013) 论文已发布。
@@ -17,7 +17,7 @@
 
 Follow the guidelines below to set up, train and evaluate:
 
-* [ Preparation ⚙️](docs/Preparation.md): Instructions for organizing datasets and pretrained weights for proper model training and inference.
+* [Preparation ⚙️](docs/Preparation.md): Instructions for organizing datasets and pretrained weights for proper model training and inference.
 * [Installation 💻](docs/Installation.md): Set up the `segearthr2` conda environment, install dependencies, and clone the repo.
 * [Training 🏋️‍♂️](docs/Training.md): Run `scripts/train.sh` with DeepSpeed, modifying parameters like data and model paths for training.
 * [Evaluation 🎯](docs/Evaluation.md): Run `scripts/eval.sh` to evaluate the model, updating paths as needed. 
