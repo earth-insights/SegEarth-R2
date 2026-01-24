@@ -11,7 +11,7 @@ conda create -n segearthr2 python=3.10
 conda activate segearthr2
 
 git clone https://github.com/earth-insights/SegEarth-R2.git
-cd segearthr2
+cd segearth_r2
 
 pip install torch==2.1.0 torchvision==0.16.0 torchaudio==2.1.0 --index-url https://download.pytorch.org/whl/cu121
 
