@@ -30,7 +30,7 @@ sh make.sh
 
 ## Note
 
-If you encounter any difficulties during the environment configuration process, you can directly download the pre-compiled environment package [here](https://pan.baidu.com/s/1Sv9U6alZ5_lPa_6w-EuIAw)
+If you encounter any difficulties during the environment configuration process, you can directly download the pre-compiled environment package [here](https://pan.baidu.com/s/1Sv9U6alZ5_lPa_6w-EuIAw?pwd=AIRS)
 
 ```bash
 tar -xzvf segearthr2.tar.gz
