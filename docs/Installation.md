@@ -1,0 +1,38 @@
+# Installation⚙️
+
+## Requirement:
+
+* Linux with Python ≥ 3.10.
+* PyTorch ≥ 2.0 and torchvision that matches the PyTorch installation.
+
+## Set up conda envirnment:
+```bash
+conda create -n segearthr2 python=3.10
+conda activate segearthr2
+
+git clone https://github.com/earth-insights/SegEarth-R2.git
+cd segearth_r2
+
+pip install torch==2.1.0 torchvision==0.16.0 torchaudio==2.1.0 --index-url https://download.pytorch.org/whl/cu121
+
+pip install -r requirements.txt
+```
+## Install detectron2
+Follow [detectron2](https://detectron2.readthedocs.io/en/latest/tutorials/install.html)
+
+## CUDA kernel for MSDeformAttn
+After preparing the required environment, run the following command to compile CUDA kernel for MSDeformAttn:
+
+```bash
+cd segearth_r2/model/mask_decoder/Mask2Former_Simplify/modeling/pixel_decoder/ops
+sh make.sh
+```
+
+## Note
+
+If you encounter any difficulties during the environment configuration process, you can directly download the pre-compiled environment package [here](https://pan.baidu.com/s/1Sv9U6alZ5_lPa_6w-EuIAw?pwd=AIRS)
+
+```bash
+tar -xzvf segearthr2.tar.gz
+source segearthr2/bin/activate
+```
