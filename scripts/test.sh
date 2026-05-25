@@ -1,4 +1,4 @@
-deepspeed --include localhost:0 --master_port=29500 segearth_r2/eval/eval_inference.py \
+deepspeed --include localhost:0 --master_port=29500 segearth_r2/eval/eval.py \
     --base_data_path data_path \
     --model_path model_path \
     --vision_tower_mask pretrained_model/mask2former/model_final_54b88a.pkl \
