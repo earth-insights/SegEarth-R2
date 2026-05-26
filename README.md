@@ -8,6 +8,7 @@
 </div>
 <br>
 
+- 05/24/2026: The code is released!
 - 05/23/2026：LaSeRS dataset is released on [HuggingFace](https://huggingface.co/datasets/earth-insights/LaSeRS)
 
 ## 🔧 Usage：
