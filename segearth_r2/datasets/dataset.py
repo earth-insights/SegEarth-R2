@@ -285,7 +285,7 @@ class LaSeRSDataset(RS_Base_Dataset):
                 'image_id': os.path.basename(image_path).split(".")[0],
             })
             
-        prefix_inst = 'This is an image <|vision_bos|> <image> <|vision_eos|> <|sep|> <|user|>, please doing Reasoning Segmentation according to the following instruction:'
+        prefix_inst = 'This is an image \n<image>\n, please doing Reasoning Segmentation according to the following instruction:'
         instruction = ref.strip()
         
         token_refer_id = self.preprocess_referring_instruction(instruction)
