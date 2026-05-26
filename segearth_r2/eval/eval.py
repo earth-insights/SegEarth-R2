@@ -277,7 +277,7 @@ def do_eval(model, tokenizer, clip_image_processor, eval_dataloader, split, data
                     align_corners=False,
                 )
                 gt_mask = (gt_mask.cpu().numpy() > 0).astype(np.uint8)
-                gt_masks.append(gt_mask) # 每个都是[1, 1, 1024, 1024]的0，1元素
+                gt_masks.append(gt_mask)
 
             n_gt = len(gt_masks)
             if masks_pred is None:
