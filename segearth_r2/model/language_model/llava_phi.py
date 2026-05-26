@@ -844,3 +844,72 @@ class SegEarthR2(MiphaPhiForCausalLM):
             }
             processed_results.append(instance_r)
         return processed_results
+    
+    def inference(
+            self,
+            do_sample=True,
+            temperature=0.2,
+            num_beams=1,
+            max_new_tokens=128,
+            eos_token_id = None,
+            use_cache=True,
+            input_ids: torch.LongTensor = None,
+            attention_mask: Optional[torch.Tensor] = None,
+            past_key_values: Optional[List[torch.FloatTensor]] = None,
+            labels: Optional[torch.LongTensor] = None,
+            images_clip: Optional[torch.FloatTensor] = None,
+            images: Optional[torch.FloatTensor] = None, # (1, 3, 1024, 1024)
+            SEG_token_id: Optional[int] = None):
+               
+        outputs = self.generate(
+            input_ids=input_ids,
+            images_clip=images_clip,
+            do_sample=do_sample,
+            eos_token_id = eos_token_id,
+            temperature=temperature,
+            num_beams=num_beams,
+            max_new_tokens=max_new_tokens,
+            use_cache=use_cache,
+            output_hidden_states=True,
+            return_dict_in_generate=True
+            )
+
+        output_ids = outputs.sequences
+        last_hidden_states = torch.cat([hidden_state[-1] for hidden_state in outputs.hidden_states], dim=1) # (1, 820, 2560)
+
+        output_ids_repeat = torch.repeat_interleave(output_ids, torch.where(output_ids[0] == -200, 729, 1), dim=1)[:, :-1]
+        SEG_token_embedding_indices = output_ids_repeat == SEG_token_id
+        
+        if torch.sum(SEG_token_embedding_indices) >= 1:
+            SEG_embedding = self.SEG_token_projector(self.get_SEG_embedding(last_hidden_states, SEG_token_embedding_indices)) # 
+
+            image_features = self.get_vision_tower_feature(images)
+
+            mask_features, transformer_encoder_features, multi_scale_features = self.pixel_decoder.forward_features(
+                image_features)
+            
+            mask_num = [SEG_embedding.shape[0]]
+            images = [image.repeat((num, 1, 1, 1)) for image, num in zip(images, mask_num)]
+            images = [s[0] for image_repeat in images for s in torch.split(image_repeat, 1, dim=0)]
+            mask_num = torch.tensor(mask_num, device=mask_features.device)
+            mask_features = torch.repeat_interleave(mask_features, repeats=mask_num, dim=0)
+            multi_scale_features = [
+                torch.repeat_interleave(feat, repeats=mask_num, dim=0)
+                for feat in multi_scale_features
+            ]
+
+            mask_outputs = self.predictor(multi_scale_features, mask_features, None, None, SEG_embedding) 
+
+            mask_pred_results = mask_outputs["pred_masks"]
+            images = ImageList.from_tensors(images, self.size_divisibility)
+            mask_pred_results = F.interpolate(
+                mask_pred_results,
+                size=(images.tensor.shape[-2], images.tensor.shape[-1]),
+                mode="bilinear",
+                align_corners=False,
+            )
+            mask_output = (mask_pred_results.detach().cpu().numpy() > 0).astype(np.uint8)
+        else:
+            mask_output = None
+        
+        return output_ids, mask_output
