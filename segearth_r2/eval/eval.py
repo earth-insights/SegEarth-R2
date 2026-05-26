@@ -28,9 +28,7 @@ import torch.nn.functional as F
 # Constants & Configuration
 # ==========================================
 DEFAULT_PREFIX_INST = (
-    "This is an image \n<image>\n. If the instruction is a question, provide segmentation "
-    "result + explanation; if it's a declarative phrase, provide only the segmentation result\n. "
-    "Please doing Referring or Reasoning Segmentation according to the following instruction:"
+    "This is an image \n<image>\n, please doing Reasoning Segmentation according to the following instruction:"
 )
 
 BASE_COLORS = [
