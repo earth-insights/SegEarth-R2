@@ -629,19 +629,24 @@ class SegEarthR2(MiphaPhiForCausalLM):
             batch_dataset_type = []
         output_attentions = True
 
-        output_hidden_states = False
         return_dict = return_dict if return_dict is not None else self.config.use_return_dict
+        if SEG_token_embedding_indices is not None:
+            output_hidden_states = False
+            if (SEG_token_embedding_indices == 1).sum() != 0:
 
-        if (SEG_token_embedding_indices == 1).sum() != 0:
-
-            # for generative mode only the 1th stage need
-            if input_ids.shape[1] != 1:
-                image_features = self.get_vision_tower_feature(images)
-                bs = input_ids.shape[0]
-            
+                # for generative mode only the 1th stage need
+                if input_ids.shape[1] != 1:
+                    image_features = self.get_vision_tower_feature(images)
+                    bs = input_ids.shape[0]
+                
+                input_ids, attention_mask, past_key_values, inputs_embeds, labels, SEG_token_embedding_indices, image_features_indices = self.prepare_inputs_labels_for_multimodal(
+                    input_ids, attention_mask, past_key_values, labels, images_clip,
+                    token_refer_id=token_refer_id, SEG_token_embedding_indices=SEG_token_embedding_indices)
+        else:
+            image_features = None
             input_ids, attention_mask, past_key_values, inputs_embeds, labels, SEG_token_embedding_indices, image_features_indices = self.prepare_inputs_labels_for_multimodal(
                 input_ids, attention_mask, past_key_values, labels, images_clip,
-                token_refer_id=token_refer_id, SEG_token_embedding_indices=SEG_token_embedding_indices)
+                token_refer_id=token_refer_id, SEG_token_embedding_indices=SEG_token_embedding_indices)         
 
         outputs = self.model(
             input_ids=input_ids,
@@ -651,121 +656,132 @@ class SegEarthR2(MiphaPhiForCausalLM):
             use_cache=use_cache,
             output_attentions=output_attentions,
             output_hidden_states=output_hidden_states,
-            return_dict=return_dict
+            return_dict=return_dict,
         )
         
         hidden_states = outputs.last_hidden_state
         logits = self.lm_head(hidden_states)
-        attentions = [attention_item.sum(dim=1) for attention_item in outputs.attentions]
-        SEG_embedding = self.SEG_token_projector(self.get_SEG_embedding(hidden_states, SEG_token_embedding_indices))
-        
-        mask_features, transformer_encoder_features, multi_scale_features = self.pixel_decoder.forward_features(
-            image_features)
-        mask_num = torch.tensor(mask_num, device=mask_features.device)
-        mask_features = torch.repeat_interleave(mask_features, repeats=mask_num, dim=0)
-        multi_scale_features = [
-            torch.repeat_interleave(feat, repeats=mask_num, dim=0)
-            for feat in multi_scale_features
-        ]
+        if SEG_token_embedding_indices is not None:
+            attentions = [attention_item.sum(dim=1) for attention_item in outputs.attentions]
+            SEG_embedding = self.SEG_token_projector(self.get_SEG_embedding(hidden_states, SEG_token_embedding_indices))
 
-        mask_outputs = self.predictor(multi_scale_features, mask_features, None, None, SEG_embedding)
+        if image_features is not None:     
+            mask_features, transformer_encoder_features, multi_scale_features = self.pixel_decoder.forward_features(
+                image_features)
+            mask_num = torch.tensor(mask_num, device=mask_features.device)
+            mask_features = torch.repeat_interleave(mask_features, repeats=mask_num, dim=0)
+            multi_scale_features = [
+                torch.repeat_interleave(feat, repeats=mask_num, dim=0)
+                for feat in multi_scale_features
+            ]
 
-        # 开始计算loss
-        loss = None
+            mask_outputs = self.predictor(multi_scale_features, mask_features, None, None, SEG_embedding)
 
-        llm_loss = None
-        if labels is not None:
-            # if seg_query_mask is None or batch_dataset_type in seg_llm_loss_dataset:
-            # Shift so that tokens < n predict n
-            shift_logits = logits[..., :-1, :].contiguous()
-            shift_labels = labels[..., 1:].contiguous()
-            # Flatten the tokens
-            loss_fct = CrossEntropyLoss()
-            vocab_size = shift_logits.shape[-1]
-            shift_logits = shift_logits.view(-1, vocab_size)  # self.config.vocab_size
-            shift_labels = shift_labels.view(-1)
-            # Enable model/pipeline parallelism
-            shift_labels = shift_labels.to(shift_logits.device)
-            llm_loss = loss_fct(shift_logits, shift_labels)
+            loss = None
+
+            llm_loss = None
+            if labels is not None:
+                # if seg_query_mask is None or batch_dataset_type in seg_llm_loss_dataset:
+                # Shift so that tokens < n predict n
+                shift_logits = logits[..., :-1, :].contiguous()
+                shift_labels = labels[..., 1:].contiguous()
+                # Flatten the tokens
+                loss_fct = CrossEntropyLoss()
+                vocab_size = shift_logits.shape[-1]
+                shift_logits = shift_logits.view(-1, vocab_size)  # self.config.vocab_size
+                shift_labels = shift_labels.view(-1)
+                # Enable model/pipeline parallelism
+                shift_labels = shift_labels.to(shift_logits.device)
+                llm_loss = loss_fct(shift_logits, shift_labels)
+                
+            mask_loss = None
+            if seg_info is not None:
+                if 'padding_mask' in seg_info[0]:
+                    if isinstance(seg_info[0]["instances"], list):
+                        gt_instances = [x["instances"][0].to(self.device) for x in seg_info]
+                    else:
+                        gt_instances = [x["instances"].to(self.device) for x in seg_info]
+
+                    targets = self.prepare_targets(gt_instances, images)
+                elif 'mask' in seg_info[0]:
+                    targets = []
+                    for gt_mask in seg_info:
+                        targets.append(
+                            {
+                                'labels': torch.tensor([0]).to(mask_outputs['pred_masks'].device),
+                                'masks': gt_mask['mask'].to(mask_outputs['pred_masks'].device),
+                                'valid': None,
+                                'inst_id': None
+                            }
+                        )
+                else:
+                    targets = None
+                mask_losses = self.criterion(mask_outputs, targets)
+                weight_dict = self.weight_dict
+
+                loss_mask = 0.0
+                loss_dice = 0.0
             
-        mask_loss = None
-        if seg_info is not None:
-            if 'padding_mask' in seg_info[0]:
-                if isinstance(seg_info[0]["instances"], list):
-                    gt_instances = [x["instances"][0].to(self.device) for x in seg_info]
-                else:
-                    gt_instances = [x["instances"].to(self.device) for x in seg_info]
+                for k in list(mask_losses.keys()):
+                    if k in weight_dict:
+                        if mask_losses[k] is not None:
+                            mask_losses[k] *= weight_dict[k]
+                        
+                        if '_mask' in k:
+                            loss_mask += mask_losses[k]
+                        
+                        elif '_dice' in k:
+                            loss_dice += mask_losses[k]
+                    else:
+                        mask_losses.pop(k)
+                mask_loss = loss_mask + loss_dice
 
-                targets = self.prepare_targets(gt_instances, images)
-            elif 'mask' in seg_info[0]:
-                targets = []
-                for gt_mask in seg_info:
-                    targets.append(
-                        {
-                            'labels': torch.tensor([0]).to(mask_outputs['pred_masks'].device),
-                            'masks': gt_mask['mask'].to(mask_outputs['pred_masks'].device),
-                            'valid': None,
-                            'inst_id': None
-                        }
-                    )
-            else:
-                targets = None
-            mask_losses = self.criterion(mask_outputs, targets)
-            weight_dict = self.weight_dict
+            loss_attention = None
+            masks = [_seg_info['mask'] for _seg_info in seg_info]
+            masks_resized = [
+                F.interpolate(m.unsqueeze(0).float(), size=(800, 800), mode="nearest").squeeze(0)
+                for m in masks
+            ]
+            masks = torch.stack(masks_resized, dim=0) # [4, 1, 800, 800]
+            masks_down = F.interpolate(masks, size=(27, 27), mode="bilinear", align_corners=False)
+            masks_down = masks_down.view(masks_down.size(0), -1)
+            masks_down[masks_down > 0] = 1
+            
+            loss_attention = torch.tensor(0.0, device=mask_loss.device)           
+            for full_attention_map in attentions:
+                batch_attentions_list = []
+                for batch_idx in range(bs):
+                    attention_map = full_attention_map[batch_idx]
+                    SEG_mask = SEG_token_embedding_indices[batch_idx].bool()
+                    image_features_mask = image_features_indices[batch_idx].bool()
+                    attention = attention_map[SEG_mask][:, image_features_mask] # [1, 729]
+                    batch_attentions_list.append(attention)
+                batch_attentions = torch.cat(batch_attentions_list, dim=0) # [4, 729]
+                loss_attention += self.attention_loss(batch_attentions, masks_down)
+                                
+            loss = llm_loss + mask_loss + 0.01 * loss_attention
+            
+            # loss = llm_loss + mask_loss
 
-            loss_mask = 0.0
-            loss_dice = 0.0
+            return CausalOutputWithMask(
+                loss=loss,
+                logits=logits,
+                past_key_values=outputs.past_key_values,
+                hidden_states=outputs.hidden_states,
+                attentions=outputs.attentions,
+                loss_mask=loss_mask.detach(),
+                loss_dice=loss_dice.detach(),
+                loss_llm=llm_loss.detach(),
+                loss_attention=0.01 * loss_attention.detach(),
+            )
         
-            for k in list(mask_losses.keys()):
-                if k in weight_dict:
-                    if mask_losses[k] is not None:
-                        mask_losses[k] *= weight_dict[k]
-                    
-                    if '_mask' in k:
-                        loss_mask += mask_losses[k]
-                    
-                    elif '_dice' in k:
-                        loss_dice += mask_losses[k]
-                else:
-                    mask_losses.pop(k)
-            mask_loss = loss_mask + loss_dice
-
-        loss_attention = None
-        masks = [_seg_info['mask'] for _seg_info in seg_info]
-        masks_resized = [
-            F.interpolate(m.unsqueeze(0).float(), size=(800, 800), mode="nearest").squeeze(0)
-            for m in masks
-        ]
-        masks = torch.stack(masks_resized, dim=0) # [4, 1, 800, 800]
-        masks_down = F.interpolate(masks, size=(27, 27), mode="bilinear", align_corners=False)
-        masks_down = masks_down.view(masks_down.size(0), -1)
-        masks_down[masks_down > 0] = 1
-        
-        loss_attention = torch.tensor(0.0, device=mask_loss.device)           
-        for full_attention_map in attentions:
-            batch_attentions_list = []
-            for batch_idx in range(bs):
-                attention_map = full_attention_map[batch_idx]
-                SEG_mask = SEG_token_embedding_indices[batch_idx].bool()
-                image_features_mask = image_features_indices[batch_idx].bool()
-                attention = attention_map[SEG_mask][:, image_features_mask] # [1, 729]
-                batch_attentions_list.append(attention)
-            batch_attentions = torch.cat(batch_attentions_list, dim=0) # [4, 729]
-            loss_attention += self.attention_loss(batch_attentions, masks_down)
-                             
-        loss = llm_loss + mask_loss + 0.01 * loss_attention
-
-        return CausalOutputWithMask(
-            loss=loss,
-            logits=logits,
-            past_key_values=outputs.past_key_values,
-            hidden_states=outputs.hidden_states,
-            attentions=outputs.attentions,
-            loss_mask=loss_mask.detach(),
-            loss_dice=loss_dice.detach(),
-            loss_llm=llm_loss.detach(),
-            loss_attention=0.01 * loss_attention.detach(),
-        )
+        else:
+            return CausalOutputWithMask(
+                logits=logits,
+                past_key_values=outputs.past_key_values,
+                hidden_states=outputs.hidden_states,
+                attentions=outputs.attentions,
+            )
     
     def eval_seg(
             self,
