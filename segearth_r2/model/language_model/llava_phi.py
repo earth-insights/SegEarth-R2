@@ -782,7 +782,7 @@ class SegEarthR2(MiphaPhiForCausalLM):
                 hidden_states=outputs.hidden_states,
                 attentions=outputs.attentions,
             )
-    
+
     def eval_seg(
             self,
             input_ids: torch.LongTensor = None,
@@ -793,7 +793,7 @@ class SegEarthR2(MiphaPhiForCausalLM):
             use_cache: Optional[bool] = None,
             output_attentions: Optional[bool] = None,
             output_hidden_states: Optional[bool] = None,
-            images: Optional[torch.FloatTensor] = None,
+            images: Optional[torch.FloatTensor] = None, # (1, 3, 1024, 1024)的
             images_clip: Optional[torch.FloatTensor] = None,
             return_dict: Optional[bool] = None,
             seg_info=None,
@@ -852,15 +852,29 @@ class SegEarthR2(MiphaPhiForCausalLM):
         
         processed_results = []
         for _seg_info, mask_pred_result in zip(seg_info, mask_pred_results):
+            gt_mask = _seg_info['mask']
+            if gt_mask is not None:
+                if gt_mask.ndim == 3 and gt_mask.shape[0] == 1:
+                    gt_mask = gt_mask[0]
+                gt_mask = torch.as_tensor(gt_mask, dtype=mask_pred_result.dtype, device=mask_pred_result.device).unsqueeze(0).unsqueeze(0)
+                gt_mask = F.interpolate(
+                    gt_mask,
+                    size=(images.tensor.shape[-2], images.tensor.shape[-1]),
+                    mode="bilinear",
+                    align_corners=False,
+                )
+            
             instance_r = {
                 'pred': ((mask_pred_result.cpu().numpy() > 0) * 255).astype(np.uint8),
+                'gt': ((gt_mask.cpu().numpy() > 0) * 255).astype(np.uint8),
                 'image_name': _seg_info['image_id'],
                 'id': _seg_info['data_id'],
                 'mask_id': _seg_info['mask_id'],
             }
             processed_results.append(instance_r)
+
         return processed_results
-    
+
     def inference(
             self,
             do_sample=True,
@@ -928,4 +942,4 @@ class SegEarthR2(MiphaPhiForCausalLM):
         else:
             mask_output = None
         
-        return output_ids, mask_output
+        return output_ids, mask_output 
