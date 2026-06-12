@@ -21,7 +21,7 @@ from segearth_r2.utils import conversation as conversation_lib
 from segearth_r2.utils.builder import load_pretrained_model
 from segearth_r2.datasets.dataset import preprocess_image
 from segearth_r2.utils.constants import IMAGE_TOKEN_INDEX, REFER_TOKEN_INDEX
-from segearth_r2.datasets.dataset import DataCollatorForCOCODatasetV2, LaSeRSDataset, RRSISDDataset, RefSegRSDataset
+from segearth_r2.datasets.dataset import DataCollatorForCOCODatasetV2, LaSeRSDataset
 import torch.nn.functional as F
 
 # ==========================================
