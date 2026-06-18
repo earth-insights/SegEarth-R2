@@ -25,10 +25,11 @@ Follow the guidelines below to set up, train and evaluate:
 If you find this project useful, welcome to cite us.
 
 ```bib
-@article{xin2025segearth,
-  title={SegEarth-R2: Towards Comprehensive Language-guided Segmentation for Remote Sensing Images},
-  author={Xin, Zepeng and Li, Kaiyu and Chen, Luodi and Li, Wanchen and Xiao, Yuchen and Qiao, Hui and Zhang, Weizhan and Meng, Deyu and Cao, Xiangyong},
-  journal={arXiv preprint arXiv:2512.20013},
-  year={2025}
+@inproceedings{xin2026segearth,
+  title={Segearth-r2: Towards comprehensive language-guided segmentation for remote sensing images},
+  author={Xin, Zepeng and Li, Kaiyu and Chen, Luodi and Li, Wanchen and Yuchen, Xiao and Qiao, Hui and Zhang, Weizhan and Meng, Deyu and Cao, Xiangyong},
+  booktitle={Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition},
+  pages={13199--13210},
+  year={2026}
 }
 ```
